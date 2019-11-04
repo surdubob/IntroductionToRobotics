@@ -1,4 +1,4 @@
-#Introduction to robotics homeworks folder
+# Introduction to robotics homeworks folder
 
 Contents:
-  -Homework for lab number 2
+  1. Homework for lab number 2
