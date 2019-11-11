@@ -27,8 +27,8 @@ int yValue = 0;
 
 bool joyMoved = false;
 int digit = 0;
-int minThreshold= 400;
-int maxThreshold= 600;
+int minThreshold = 400;
+int maxThreshold = 600;
 
 // store the pins in an array for easier access
 int segments[segSize] = {
@@ -36,7 +36,7 @@ int segments[segSize] = {
 };
 
 byte digitMatrix[noOfDigits][segSize - 1] = {
-// a  b  c  d  e  f  g
+  // a  b  c  d  e  f  g
   {1, 1, 1, 1, 1, 1, 0}, // 0
   {0, 1, 1, 0, 0, 0, 0}, // 1
   {1, 1, 0, 1, 1, 0, 1}, // 2
@@ -51,7 +51,7 @@ byte digitMatrix[noOfDigits][segSize - 1] = {
 
 void displayNumber(byte digit, byte decimalPoint) {
   for (int i = 0; i < segSize - 1; i++) {
-  digitalWrite(segments[i], digitMatrix[digit][i]);
+    digitalWrite(segments[i], digitMatrix[digit][i]);
   }
 
   // write the decimalPoint to DP pin
@@ -61,50 +61,50 @@ void displayNumber(byte digit, byte decimalPoint) {
 void setup() {
   // initialize all the pins
   for (int i = 0; i < segSize; i++) {
-  pinMode(segments[i], OUTPUT);
+    pinMode(segments[i], OUTPUT);
   }
   pinMode(pinSW, INPUT_PULLUP);
- 
+
   displayNumber(digit, dpState); // initial value displayed. Choose any value
 }
 
 void loop() {
   xValue = analogRead(pinX);
- // On Ox axis, if the value is lower than a chosen min threshold, then
- // decrease by 1 the digit value.
+  // On Ox axis, if the value is lower than a chosen min threshold, then
+  // decrease by 1 the digit value.
   if (xValue < minThreshold && joyMoved == false) {
-  if (digit > 0) {
+    if (digit > 0) {
       digit--;
-  } else {
+    } else {
       digit = 9;
-  }
-  joyMoved = true;
+    }
+    joyMoved = true;
   }
 
- // On Ox axis, if the value is bigger than a chosen max threshold, then
- // increase by 1 the digit value
+  // On Ox axis, if the value is bigger than a chosen max threshold, then
+  // increase by 1 the digit value
   if (xValue > maxThreshold && joyMoved == false) {
-  if (digit < 9) {
+    if (digit < 9) {
       digit++;
-  } else {
+    } else {
       digit = 0;
-  }
-  joyMoved = true;
+    }
+    joyMoved = true;
   }
 
   if (xValue >= minThreshold && xValue <= maxThreshold) {
-  joyMoved = false;
+    joyMoved = false;
   }
 
   // simple state change detector. I0[deally, use debounce.
   swState = digitalRead(pinSW);
   if (swState !=  lastSwState) {
-  if (swState == LOW) {
+    if (swState == LOW) {
       dpState = !dpState;
-  }
+    }
   }
   lastSwState = swState;
- 
+
   displayNumber(digit, dpState);
   delay(1);
 }
