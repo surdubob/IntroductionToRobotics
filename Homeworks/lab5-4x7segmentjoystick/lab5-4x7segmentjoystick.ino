@@ -13,8 +13,8 @@ const int pinD4 = 13;
 
 // declare all the joystick pins
 const int pinSW = A2; // digital pin connected to switch output
-const int pinX = A1; // A0 - analog pin connected to X output
-const int pinY = A0; // A1 - analog pin connected to Y output
+const int pinX = A1; // A1 - analog pin connected to X output
+const int pinY = A0; // A0 - analog pin connected to Y output
 
 const int segSize = 8;
 
@@ -147,13 +147,7 @@ void loop() {
     displayNumber(0, editingDigit == 0 && dpState);
     delay(5);
   }
-  // increment the number
-  /*if (millis() - lastIncreasing >= delayCounting) {
-    currentNumber = (currentNumber + 1) % 10000;
-    lastIncreasing = millis();
-    Serial.println(currentState);
-  }*/
-
+ 
   if(currentState == NO_SELECTION) {
     swState = digitalRead(pinSW);
     if (swState !=  lastSwState) {
@@ -202,14 +196,13 @@ void loop() {
   }
 
   if(currentState == EDITING_DIGIT) {
-    //int currentEditingDigit = currentNumber / pow(10, editingDigit) % 10;
     yValue = analogRead(pinY);
     int p10 = pow10(editingDigit);
     if (yValue < minThreshold && joyMoved == false) {
       // joystick moved down
       if(currentNumber / p10 % 10 > 0) {
         currentNumber -= p10;
-        //Serial.print("A sczut ");
+        //Serial.print("A scazut ");
         //Serial.println(p10);
       } else {
         currentNumber += 9 * p10;
