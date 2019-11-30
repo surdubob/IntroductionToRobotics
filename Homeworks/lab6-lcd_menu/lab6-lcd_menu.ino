@@ -133,7 +133,7 @@ void loop() {
         lcd.print(level);
         lcd.print("  ");
         lcd.print(lives);
-        lcd.print(byte(0));
+        lcd.write(byte(0));
         lcd.setCursor(0, 1);
         lcd.print("Score: ");
         lcd.print(score);
