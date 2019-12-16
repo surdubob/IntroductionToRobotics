@@ -17,5 +17,5 @@ The game that will be implemented for this project is a randomly generated labyr
 6. If you want to see some information about the creator of the game, navigate through the menu to the right from the 'Settings' menu item.
 
 Video link:
-  <a href="https://youtu.be/zgKBmGQqvbI" target="_blank"><img src="http://img.youtube.com/vi/zgKBmGQqvbI/0.jpg" 
+<a href="https://youtu.be/zgKBmGQqvbI" target="_blank"><img src="http://img.youtube.com/vi/zgKBmGQqvbI/0.jpg" 
 alt="IMAGE ALT TEXT" width="240" height="180" border="10" /></a>
