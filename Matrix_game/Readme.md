@@ -16,6 +16,11 @@ The game that will be implemented for this project is a randomly generated labyr
 5. If you want to see you highest score, navigate to the HiScore menu item. You can clear the hiscore by pressing the joystick.
 6. If you want to see some information about the creator of the game, navigate through the menu to the right from the 'Settings' menu item.
 
+<img src="https://raw.githubusercontent.com/surdubob/IntroductionToRobotics/master/Matrix_game/20191216_154810.jpg" 
+alt="IMAGE ALT TEXT" width="240" height="180" border="10" />
+<img src="https://raw.githubusercontent.com/surdubob/IntroductionToRobotics/master/Matrix_game/20191216_154819.jpg" 
+alt="IMAGE ALT TEXT" width="240" height="180" border="10" />
+
 Video link: <br>
 <a href="https://youtu.be/zgKBmGQqvbI" target="_blank"><img src="http://img.youtube.com/vi/zgKBmGQqvbI/0.jpg" 
 alt="IMAGE ALT TEXT" width="240" height="180" border="10" /></a>
