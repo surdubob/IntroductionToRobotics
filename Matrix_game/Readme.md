@@ -1,6 +1,6 @@
 # Labyrinth game
 
-The game that will be implemented for this project is a randomly generated labyrinth, displayed on a 8x8 led matrix. The player controls his character with a joystick and has to find the diamonds before reaching the exit of the maze while avoiding the monsters.
+The game that will be implemented for this project is a randomly generated labyrinth, displayed on a 8x8 led matrix. The player controls his character with a joystick and has to find the diamonds and reach the exit of the maze.
 
 ### Used hardware components:
 - 8x8 led matrix controlled with the MAX2719 driver
@@ -16,21 +16,20 @@ The game that will be implemented for this project is a randomly generated labyr
 5. If you want to see you highest score, navigate to the HiScore menu item. You can clear the hiscore by pressing the joystick.
 6. If you want to see some information about the creator of the game, navigate through the menu to the right from the 'Settings' menu item.
 
-<style>
-.rotateimg90 {
-  -webkit-transform:rotate(90deg);
-  -moz-transform: rotate(90deg);
-  -ms-transform: rotate(90deg);
-  -o-transform: rotate(90deg);
-  transform: rotate(90deg);
-}
-</style>
 
 <img src="https://raw.githubusercontent.com/surdubob/IntroductionToRobotics/master/Matrix_game/20191216_154810.jpg" 
-alt="IMAGE ALT TEXT" width="240" height="380" border="10" class="rotate90"/>
+alt="IMAGE ALT TEXT" width="240" height="380" border="10" style="-webkit-transform:rotate(180deg);
+  -moz-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  -o-transform: rotate(180deg);
+  transform: rotate(180deg);"/>
 
 <img src="https://raw.githubusercontent.com/surdubob/IntroductionToRobotics/master/Matrix_game/20191216_154819.jpg" 
-alt="IMAGE ALT TEXT" width="240" height="380" border="10" class="rotate90"/>
+alt="IMAGE ALT TEXT" width="240" height="380" border="10" style="-webkit-transform:rotate(180deg);
+  -moz-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  -o-transform: rotate(180deg);
+  transform: rotate(180deg);"/>
 
 Video link: <br>
 <a href="https://youtu.be/zgKBmGQqvbI" target="_blank"><img src="http://img.youtube.com/vi/zgKBmGQqvbI/0.jpg" 
