@@ -1,8 +1,8 @@
 #include <LiquidCrystal.h>
 
 // LCD variables
-const int rsPin = 12;
-const int ePin = 11;
+const int rsPin = 7;
+const int ePin = 6;
 const int d4Pin = 5;
 const int d5Pin = 4;
 const int d6Pin = 3;
@@ -46,7 +46,7 @@ byte right[8] = {
 
 const int jsX = A0;
 const int jsY = A1;
-const int jsSW = 7;
+const int jsSW = 8;
 
 int xValue = 0, yValue = 0;
 int minThreshold = 400, maxThreshold = 600;
