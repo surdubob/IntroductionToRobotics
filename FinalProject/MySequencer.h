@@ -104,22 +104,24 @@ class MySequencer {
 		void run() {
 			if(micros() - _lastTempoTick > _tickTimeInterval) {
 				_sendClockSignal();
-				_clockTickNumber %= CLOCKS_PER_BEAT;
-				//Serial.println("Beat");
+				_clockTickNumber %= (CLOCKS_PER_BEAT / 2);
 				if(_clockTickNumber == 0){
 					_beat_cb();
-					
 				}
 			}
 		}
 
 		void setTempo(int tempo) {
 			_tempo = tempo;
-			//_setTickTimeInterval(_calculateIntervalMicroSecs(tempo));
+			_setTickTimeInterval(_calculateIntervalMicroSecs(tempo));
 		}
 
 		void getTempo() {
 			return _tempo;
+		}
+
+		long getTickInterval() {
+			return _tickTimeInterval;
 		}
 
 		void setMidiHandler(MidiCallback cb) {
@@ -142,7 +144,7 @@ class MySequencer {
 
 	private:
 		int _tempo;
-		int _tickTimeInterval;
+		long _tickTimeInterval;
 		long _lastTempoTick;
 		long _clockTickNumber;
 		
@@ -163,7 +165,8 @@ class MySequencer {
 				return;			
 			
 			// tick
-			_midi_cb(0x0, 0xF8, 0x0, 0x0);
+			//_midi_cb(0x0, 0xF8, 0x0, 0x0);
+			Serial2.write(0xF8);
 			
 			_lastTempoTick = micros();
 			_clockTickNumber++;
@@ -171,7 +174,7 @@ class MySequencer {
 
 		long _calculateIntervalMicroSecs(int bpm) {
 			// Take care about overflows!
-			float interm = 60.0 / (float)bpm / CLOCKS_PER_BEAT;
+			float interm = 60.0 / bpm / CLOCKS_PER_BEAT;
 			long val = interm * 1000000L;
 			return val;
 		}
@@ -185,11 +188,11 @@ class MySequencer {
 			_midi_cb(0x0, 0x9, note.getPitch(), note.getVelocity());
 		}
 
-		void sendNoteOff(Note note) {
+		void _sendNoteOff(Note note) {
 			_midi_cb(0x0, 0x8, note.getPitch(), 0x0);
 		}
 
-		void sendNoteOff(int pitch) {
+		void _sendNoteOff(int pitch) {
 			_midi_cb(0x0, 0x8, pitch, 0x0);
 		}
 };

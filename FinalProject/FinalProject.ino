@@ -353,7 +353,6 @@ void loop() {
 	}
 
 	buttonMatrix.tick();
-	delay(100);
 	seq->run();
 }
 
@@ -389,7 +388,7 @@ void initDisplay() {
 }
 
 void initSequencer() {
-	seq = &MySequencer(120);
+	seq = new MySequencer(120);
 	seq->setStepNumber(16);
 	seq->setMidiHandler(sendMidi);
 	seq->setStepHandler(seqStep);
@@ -1206,7 +1205,7 @@ void encoderBpm(bool dir) {
 			lastBpmChange = millis();
 		}
 	}
-	//seq.setTempo(BPM);
+	seq->setTempo(BPM);
 }
 
 
@@ -1232,7 +1231,7 @@ void sendMidi(byte channel, byte command, byte arg1, byte arg2) {
 	Serial2.write(arg2);
 }
 
-bool blinkBeat = true;
+bool blinkBeat = false;
 
 void beatCallback() {
 	// blink on even beats
