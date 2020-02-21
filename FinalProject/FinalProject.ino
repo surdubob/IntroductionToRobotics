@@ -4,6 +4,7 @@
 #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
 #include <Eeprom_at24c256.h>
 #include "MySequencer.h"
+#include "Set.h"
 
 //================ SOME CONSTANTS ===============================
 
@@ -163,70 +164,16 @@ long lastBpmChange = 0;
 long lastModeChange = 0;
 long lastRecBlink = 0;
 long lastScaleChange = 0;
+long lastBpmBlink = 0;
 
-class Set {
-	public:
-		Set() {
-			for (int i = 0; i < 4; i++) {
-				values[i] = -1;
-			}
-		}
-
-		void insert(int val) {
-			for (int i = 0; i < 4; i++) {
-				if (values[i] == -1) {
-					values[i] = val;
-					break;
-				}
-			}
-		}
-
-		void remove(int val) {
-			for (int i = 0; i < 4; i++) {
-				if (values[i] == val) {
-					values[i] = -1;
-				}
-			}
-		}
-
-		bool exists(int val) {
-			for (int i = 0; i < 4; i++) {
-				if (values[i] == val) {
-					return true;
-				}
-			}
-			return false;
-		}
-
-		int size() {
-			int nr = 0;
-			for (int i = 0; i < 4; i++) {
-				if (values[i] != -1) {
-					nr++;
-				}
-			}
-			return nr;
-		}
-
-		bool existsOtherThan(int a) {
-			int nr = 0;
-			for (int i = 0; i < 4; i++) {
-				if (values[i] != -1 && values[i] != a) {
-					nr++;
-				}
-			}
-			return nr != 0;
-		}
-	private:
-		int values[4];
-};
+int lastStep = 0;
+int crStep = 0;
 
 Set keySet = Set();
 
 String modeStrings[4] = {"Note", "Velocity", "Legato", "Gate"};
 
 CRGB* modeLeds[4] = {&leds[NOTE_LED], &leds[VELOCITY_LED], &leds[LEGATO_LED], &leds[GATE_LED]};
-
 
 
 #define SCALE_NUMBER 10
@@ -259,7 +206,7 @@ int semitonesPerOctave = 12;
 
 bool changingScale = false;
 
-
+int stepPage = 1;
 
 void setup() {
 	Serial.begin(115200);
@@ -320,6 +267,13 @@ void loop() {
 	if (millis() - lastScaleChange < 100) {
 		displayScale();
 	}
+	if(millis() - lastBpmBlink > 100) {
+		digitalWrite(bpmLed, LOW);
+		if (currentSeqState == RECORDING) {
+			leds[REC_LED] = CRGB::Black;
+			FastLED.show();
+		}
+	}
 	debounceButtons();
 
 
@@ -375,7 +329,7 @@ void initButtons() {
 void initLeds() {
 	FastLED.addLeds<NEOPIXEL, DATA_PIN_MATRIX>(leds, 0, MATRIX_LED_NUMBER);
 	FastLED.addLeds<NEOPIXEL, DATA_PIN_CONTROL>(leds, MATRIX_LED_NUMBER, CONTROL_LED_NUMBER);
-	FastLED.setBrightness(  BRIGHTNESS );
+	FastLED.setBrightness(BRIGHTNESS);
 
 	pinMode(bpmLed, OUTPUT);
 }
@@ -389,10 +343,22 @@ void initDisplay() {
 
 void initSequencer() {
 	seq = new MySequencer(120);
-	seq->setStepNumber(16);
+	seq->setStepNumber(8);
 	seq->setMidiHandler(sendMidi);
 	seq->setStepHandler(seqStep);
 	seq->setBeatHandler(beatCallback);
+
+	Serial.println("inainte");
+	seq->getSequence()->addNote(new Note(48));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(48, 127, 3, true));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
+
+	seq->getSequence()->printNotes();
 }
 
 void initVars() {
@@ -420,15 +386,20 @@ void buttonEventOctMinus() {
 }
 
 void buttonEventPlayPause() {
-	Serial.println("Play/Pause");
 	if (currentSeqState == STOPPED) {
 		currentSeqState = PLAYING;
-		//seq.start();
+		seq->start();
 		leds[PLAY_LED] = CRGB::Green;
 	} else {
 		currentSeqState = STOPPED;
-		//seq.pause();
+		seq->pause();
 		leds[PLAY_LED] = CRGB::White;
+		sendNoteOff(lastStep);
+		sendNoteOff(crStep);
+		Serial.print(lastStep);
+		Serial.print("       ");
+		Serial.println(crStep);
+		//allNotesOff();
 	}
 	FastLED.show();
 }
@@ -1098,7 +1069,7 @@ void keyEvent(keypadEvent e) {
 			}
 			break;
 		case 19:
-
+			
 			break;
 		case 20:
 
@@ -1213,7 +1184,8 @@ void encoderBpm(bool dir) {
 
 // called when the step position changes.
 void seqStep(int current, int last) {
-	
+	lastStep = last;
+	crStep = current;
 }
 
 // the callback that will be called by the sequencer when it needs to send midi commands.
@@ -1231,21 +1203,17 @@ void sendMidi(byte channel, byte command, byte arg1, byte arg2) {
 	Serial2.write(arg2);
 }
 
-bool blinkBeat = false;
+bool blinkBeat = true;
 
 void beatCallback() {
 	// blink on even beats
-	if (blinkBeat) {
+	if (blinkBeat) {	
 		analogWrite(bpmLed, 5);
 		leds[REC_LED] = CRGB::Red;
 		FastLED.show();
-	} else {
-		digitalWrite(bpmLed, LOW);
-		if (currentSeqState == RECORDING) {
-			leds[REC_LED] = CRGB::Black;
-			FastLED.show();
-		}
+		lastBpmBlink = millis();
 	}
+
 	blinkBeat = !blinkBeat;
 }
 
@@ -1365,6 +1333,10 @@ void sendNoteOn(int note, int velocity) {
 
 void sendNoteOff(int note) {
 	sendMidi(0x0, 0x8, note, 0x0);
+}
+
+void allNotesOff() {
+	sendMidi(0x0, 123, 0x0, 0x0);
 }
 
 void updateScaleLeds() {

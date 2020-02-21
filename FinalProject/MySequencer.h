@@ -41,16 +41,36 @@ class Note {
 
 		Note() {
 			_pitch = 36;
-			_velocity = 127;
+			_velocity = 0;
+			_legato = false;
+			_gate = 4;
 		}
 
 		Note(int pitch) {
 			_pitch = pitch;
+			_velocity = 127;
+			_legato = false;
+			_gate = 4;
 		}
 
 		Note(int pitch, int velocity) {
 			_pitch = pitch;
 			_velocity = velocity;
+			_legato = false;
+			_gate = 4;
+		}
+		Note(int pitch, int velocity, int gate) {
+			_pitch = pitch;
+			_velocity = velocity;
+			_legato = false;
+			_gate = gate;
+		}
+
+		Note(int pitch, int velocity, int gate, bool legato) {
+			_pitch = pitch;
+			_velocity = velocity;
+			_legato = legato;
+			_gate = gate;
 		}
 
 		int getPitch() {
@@ -69,20 +89,80 @@ class Note {
 			return _velocity;
 		}
 
+		void setLegato(bool legato) {
+			_legato = legato;
+		}
+
+		bool getLegato() {
+			return _legato;
+		}
+
+		void setGate(int gate) {
+			_gate = gate;
+		}
+
+		int getGate() {
+			return _gate;
+		}
+
 	private:
 		int _pitch;
 		int _velocity;
+		bool _legato;
+		int _gate;	//values between 0 and 12
 };
 
 class Sequence {
 	public:
-	Sequence(int stepNumber) {
-		_length = stepNumber;
-	}
 
+		Sequence() {
+			Sequence(16);
+		}
+	
+		Sequence(int stepNumber) {
+			_stepNumber = stepNumber;
+			_setStepNumber = 0;
+		}
+	
+		void setStepNumber(int sn) {
+			_stepNumber = sn;
+		}
+	
+		int getStepNumber() {
+			return _stepNumber;
+		}
+
+		
+		void setStep(Note *note, int index) {
+			_notes[index] = note;
+			if(index > _setStepNumber) {
+				_setStepNumber = index;
+			}
+		}
+
+		void addNote(Note *newNote) {
+			if(_setStepNumber < _stepNumber) {
+				_notes[_setStepNumber] = newNote;
+				_setStepNumber++;
+			}
+		}
+
+		Note* getNote(int index) {
+			return _notes[index];
+		}
+
+		void printNotes() {
+			for(int i = 0; i < _stepNumber; i++) {
+				Serial.print(getNote(i)->getPitch());
+				Serial.print("  ");
+			}
+			Serial.println();
+		}
+
+		int _setStepNumber;
 	private:
-		int _length;
-		Note _notes[32];
+		int _stepNumber;		
+		Note *_notes[32];
 		
 };
 
@@ -94,21 +174,66 @@ class MySequencer {
 		}
 	
 		MySequencer(int tempo) {
+			_sequence = new Sequence();
 			_running = false;
 			setTempo(tempo);
 			_currentStep = _lastStep = 1;
 			_lastTempoTick = micros();
 			_tickTimeInterval = 20833;
+			_sequence->_setStepNumber = 0;
 		}
 
 		void run() {
 			if(micros() - _lastTempoTick > _tickTimeInterval) {
 				_sendClockSignal();
 				_clockTickNumber %= (CLOCKS_PER_BEAT / 2);
+
+				if(_running) {
+					if(_clockTickNumber == 0) {
+						_lastStep = _currentStep;
+						_currentStep++;
+						if(_currentStep >= (_sequence->getStepNumber())) {
+							_currentStep = 0;
+						}
+						_sendNoteOn(_sequence->getNote(_currentStep));
+						//Serial.println(_sequence->getNote(_currentStep)->getPitch());
+						_step_cb(_sequence->getNote(_currentStep)->getPitch(), _sequence->getNote(_lastStep)->getPitch());
+					} 
+					if(_sequence->getNote(_currentStep)->getGate() == _clockTickNumber - _noteOnTick && !_sequence->getNote(_currentStep)->getLegato()) {
+						_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
+					}
+					if(_sequence->getNote(_currentStep)->getLegato() && _clockTickNumber == 11) {
+						_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
+					}
+				} else if(!_sentNoteOffLast) {
+					_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
+					_sentNoteOffLast = true;
+				}
 				if(_clockTickNumber == 0){
 					_beat_cb();
 				}
 			}
+		}
+
+		void start() {
+			_running = true;
+			_currentStep = 0;
+			_lastStep = 0;
+		}
+
+		void stop() {
+			_running = false;
+			_currentStep = 0;
+			_lastStep = 0;
+			_sentNoteOffLast = false;
+		}
+
+		void pause() {
+			_running = false;
+			_sentNoteOffLast = false;
+		}
+		void resume() {
+			_running = true;
 		}
 
 		void setTempo(int tempo) {
@@ -116,12 +241,8 @@ class MySequencer {
 			_setTickTimeInterval(_calculateIntervalMicroSecs(tempo));
 		}
 
-		void getTempo() {
+		int getTempo() {
 			return _tempo;
-		}
-
-		long getTickInterval() {
-			return _tickTimeInterval;
 		}
 
 		void setMidiHandler(MidiCallback cb) {
@@ -138,21 +259,29 @@ class MySequencer {
 
 		void setStepNumber(int steps) {
 			if(steps > 0 && steps <= 32) {
-				_stepNumber = steps;
+				_sequence->setStepNumber(steps);
 			}
 		}
 
+		Sequence* getSequence() {
+			return _sequence;
+		}
+
 	private:
+		Sequence *_sequence;
+	
 		int _tempo;
 		long _tickTimeInterval;
 		long _lastTempoTick;
 		long _clockTickNumber;
+		long _noteOnTick;
 		
-		int _stepNumber;
 		int _currentStep;
 		int _lastStep;
 
 		bool _running;
+
+		bool _sentNoteOffLast = false;
 
 		MidiCallback _midi_cb;
 		StepCallback _step_cb;
@@ -184,12 +313,13 @@ class MySequencer {
 		}
 
 
-		void _sendNoteOn(Note note) {
-			_midi_cb(0x0, 0x9, note.getPitch(), note.getVelocity());
+		void _sendNoteOn(Note *note) {
+			_midi_cb(0x0, 0x9, note->getPitch(), note->getVelocity());
+			_noteOnTick = _clockTickNumber;
 		}
 
-		void _sendNoteOff(Note note) {
-			_midi_cb(0x0, 0x8, note.getPitch(), 0x0);
+		void _sendNoteOff(Note *note) {
+			_midi_cb(0x0, 0x8, note->getPitch(), 0x0);
 		}
 
 		void _sendNoteOff(int pitch) {
