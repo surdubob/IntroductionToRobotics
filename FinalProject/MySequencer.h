@@ -59,6 +59,7 @@ class Note {
 			_legato = false;
 			_gate = 4;
 		}
+		
 		Note(int pitch, int velocity, int gate) {
 			_pitch = pitch;
 			_velocity = velocity;
@@ -177,7 +178,7 @@ class MySequencer {
 			_sequence = new Sequence();
 			_running = false;
 			setTempo(tempo);
-			_currentStep = _lastStep = 1;
+			_currentStep = _lastStep = 0;
 			_lastTempoTick = micros();
 			_tickTimeInterval = 20833;
 			_sequence->_setStepNumber = 0;
@@ -190,6 +191,10 @@ class MySequencer {
 
 				if(_running) {
 					if(_clockTickNumber == 0) {
+						if(_sequence->getNote(_lastStep)->getLegato()) {
+							_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
+							_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
+						}
 						_lastStep = _currentStep;
 						_currentStep++;
 						if(_currentStep >= (_sequence->getStepNumber())) {
@@ -202,11 +207,9 @@ class MySequencer {
 					if(_sequence->getNote(_currentStep)->getGate() == _clockTickNumber - _noteOnTick && !_sequence->getNote(_currentStep)->getLegato()) {
 						_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
 					}
-					if(_sequence->getNote(_currentStep)->getLegato() && _clockTickNumber == 11) {
-						_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
-					}
 				} else if(!_sentNoteOffLast) {
 					_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
+					_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
 					_sentNoteOffLast = true;
 				}
 				if(_clockTickNumber == 0){
@@ -217,8 +220,9 @@ class MySequencer {
 
 		void start() {
 			_running = true;
-			_currentStep = 0;
-			_lastStep = 0;
+			if(_currentStep == 0) {
+				_sendNoteOn(_sequence->getNote(_currentStep));
+			}
 		}
 
 		void stop() {

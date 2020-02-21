@@ -166,9 +166,6 @@ long lastRecBlink = 0;
 long lastScaleChange = 0;
 long lastBpmBlink = 0;
 
-int lastStep = 0;
-int crStep = 0;
-
 Set keySet = Set();
 
 String modeStrings[4] = {"Note", "Velocity", "Legato", "Gate"};
@@ -349,11 +346,11 @@ void initSequencer() {
 	seq->setBeatHandler(beatCallback);
 
 	Serial.println("inainte");
+	seq->getSequence()->addNote(new Note(60));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(36));
 	seq->getSequence()->addNote(new Note(48));
-	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(48, 127, 3, true));
 	seq->getSequence()->addNote(new Note(36));
 	seq->getSequence()->addNote(new Note(36));
 	seq->getSequence()->addNote(new Note(36));
@@ -393,13 +390,7 @@ void buttonEventPlayPause() {
 	} else {
 		currentSeqState = STOPPED;
 		seq->pause();
-		leds[PLAY_LED] = CRGB::White;
-		sendNoteOff(lastStep);
-		sendNoteOff(crStep);
-		Serial.print(lastStep);
-		Serial.print("       ");
-		Serial.println(crStep);
-		//allNotesOff();
+		leds[PLAY_LED] = CRGB::Yellow;
 	}
 	FastLED.show();
 }
@@ -415,7 +406,13 @@ void buttonEventRecord() {
 }
 
 void buttonEventSave() {
-	Serial.println(F("Save"));
+	Serial.println(F("Save/Stop"));
+	if(currentSeqState = PLAYING) {
+		seq->stop();
+		leds[PLAY_LED] = CRGB::White;
+		currentSeqState = STOPPED;
+		FastLED.show();
+	}
 }
 
 void buttonEventShift() {
@@ -1184,8 +1181,7 @@ void encoderBpm(bool dir) {
 
 // called when the step position changes.
 void seqStep(int current, int last) {
-	lastStep = last;
-	crStep = current;
+
 }
 
 // the callback that will be called by the sequencer when it needs to send midi commands.
