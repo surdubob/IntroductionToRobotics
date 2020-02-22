@@ -133,6 +133,9 @@ class Sequence {
 			return _stepNumber;
 		}
 
+		void setStep(int pitch, int index) {
+			_notes[index]->setPitch(pitch);
+		}
 		
 		void setStep(Note *note, int index) {
 			_notes[index] = note;
@@ -191,6 +194,10 @@ class MySequencer {
 
 				if(_running) {
 					if(_clockTickNumber == 0) {
+						if(_firstTime) {
+							_sendNoteOff(_sequence->getNote(0)->getPitch());
+							_firstTime = false;
+						}
 						if(_sequence->getNote(_lastStep)->getLegato()) {
 							_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
 							_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
@@ -202,7 +209,7 @@ class MySequencer {
 						}
 						_sendNoteOn(_sequence->getNote(_currentStep));
 						//Serial.println(_sequence->getNote(_currentStep)->getPitch());
-						_step_cb(_sequence->getNote(_currentStep)->getPitch(), _sequence->getNote(_lastStep)->getPitch());
+						_step_cb(_currentStep, _lastStep);
 					} 
 					if(_sequence->getNote(_currentStep)->getGate() == _clockTickNumber - _noteOnTick && !_sequence->getNote(_currentStep)->getLegato()) {
 						_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
@@ -211,6 +218,11 @@ class MySequencer {
 					_sendNoteOff(_sequence->getNote(_lastStep)->getPitch());
 					_sendNoteOff(_sequence->getNote(_currentStep)->getPitch());
 					_sentNoteOffLast = true;
+					if(_stp) {
+						_currentStep = 0;
+						_lastStep = 0;
+						_stp = false;
+					}
 				}
 				if(_clockTickNumber == 0){
 					_beat_cb();
@@ -222,14 +234,18 @@ class MySequencer {
 			_running = true;
 			if(_currentStep == 0) {
 				_sendNoteOn(_sequence->getNote(_currentStep));
+				//_sendClockSignal();
+				_step_cb(_currentStep, _lastStep);
+				_firstTime = true;
 			}
+			_lastTempoTick = micros();
 		}
 
 		void stop() {
 			_running = false;
-			_currentStep = 0;
-			_lastStep = 0;
 			_sentNoteOffLast = false;
+			_stp = true;
+			_firstTime = true;
 		}
 
 		void pause() {
@@ -271,6 +287,10 @@ class MySequencer {
 			return _sequence;
 		}
 
+		int getCurrentStep() {
+			return _currentStep;
+		}
+
 	private:
 		Sequence *_sequence;
 	
@@ -286,6 +306,9 @@ class MySequencer {
 		bool _running;
 
 		bool _sentNoteOffLast = false;
+
+		bool _stp = false;
+		bool _firstTime = true;
 
 		MidiCallback _midi_cb;
 		StepCallback _step_cb;

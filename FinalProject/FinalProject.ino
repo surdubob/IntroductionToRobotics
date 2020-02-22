@@ -8,8 +8,8 @@
 
 //================ SOME CONSTANTS ===============================
 
-#define BRIGHTNESS 20
-#define SPLASH_DURATION 100
+#define BRIGHTNESS 50
+#define SPLASH_DURATION 8000
 #define UPDATES_PER_SECOND 100
 
 #define NOTE_LED 0
@@ -26,17 +26,22 @@
 #define LEGATO_BTN 19
 #define GATE_BTN 28
 
-#define NOTE_COLOR     CRGB(255,128,213)
+#define NOTE_COLOR     CRGB(255, 102, 204)
 #define VELOCITY_COLOR CRGB(51, 204, 51)
 #define LEGATO_COLOR   CRGB(255, 30, 30)
 #define GATE_COLOR     CRGB(128, 179, 255)
 
-#define KEYBOARD_NOTE_COLOR CRGB(255, 200, 200)
-#define STEP_COLOR CRGB(255, 204, 255)
+#define STEP_COLOR CRGB(0, 179, 179)
 
 const int lineheight = 8;	//default font size
 
 int midiChannel = 1;
+
+String noteNames[12] = {
+	"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+};
+
+int km[12] = {10, 2, 11, 3, 12, 13, 5, 14, 6, 15, 7, 16};
 
 //================ BUTTON MATRIX VARIABLES=======================
 
@@ -171,6 +176,9 @@ Set keySet = Set();
 String modeStrings[4] = {"Note", "Velocity", "Legato", "Gate"};
 
 CRGB* modeLeds[4] = {&leds[NOTE_LED], &leds[VELOCITY_LED], &leds[LEGATO_LED], &leds[GATE_LED]};
+CRGB* stepLeds[16] = {
+	&leds[19], &leds[20], &leds[21], &leds[22], &leds[23], &leds[24], &leds[25], &leds[26], &leds[28], &leds[29], &leds[30], &leds[31], &leds[32], &leds[33], &leds[34], &leds[35]
+};
 
 
 #define SCALE_NUMBER 10
@@ -203,7 +211,10 @@ int semitonesPerOctave = 12;
 
 bool changingScale = false;
 
-int stepPage = 1;
+int selectedStep = -1;
+int lastSelectedStep = -1;
+
+bool scaleError = false;
 
 void setup() {
 	Serial.begin(115200);
@@ -263,6 +274,9 @@ void loop() {
 	}
 	if (millis() - lastScaleChange < 100) {
 		displayScale();
+	}
+	if(scaleError) {
+		showScaleError();
 	}
 	if(millis() - lastBpmBlink > 100) {
 		digitalWrite(bpmLed, LOW);
@@ -346,14 +360,14 @@ void initSequencer() {
 	seq->setBeatHandler(beatCallback);
 
 	Serial.println("inainte");
-	seq->getSequence()->addNote(new Note(60));
 	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(39));
 	seq->getSequence()->addNote(new Note(48));
+	seq->getSequence()->addNote(new Note(46));
 	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
-	seq->getSequence()->addNote(new Note(36));
+	seq->getSequence()->addNote(new Note(39));
+	seq->getSequence()->addNote(new Note(41));
+	seq->getSequence()->addNote(new Note(43));
 
 	seq->getSequence()->printNotes();
 }
@@ -374,12 +388,21 @@ void initVars() {
 
 void buttonEventOctPlus() {
 	Serial.println("Oct+");
-	octaveModifier++;
+	if(selectedStep == -1) {
+		octaveModifier++;	
+	} else {
+		seq->getSequence()->getNote(selectedStep)->setPitch( seq->getSequence()->getNote(selectedStep)->getPitch() + 12 );
+	}
 }
 
 void buttonEventOctMinus() {
 	Serial.println("Oct-");
 	octaveModifier--;
+	if(selectedStep == -1) {
+		octaveModifier++;	
+	} else {
+		seq->getSequence()->getNote(selectedStep)->setPitch( seq->getSequence()->getNote(selectedStep)->getPitch() - 12 );
+	}
 }
 
 void buttonEventPlayPause() {
@@ -387,6 +410,9 @@ void buttonEventPlayPause() {
 		currentSeqState = PLAYING;
 		seq->start();
 		leds[PLAY_LED] = CRGB::Green;
+		for (int i = 0; i < 16; i++) {
+			*stepLeds[i] = STEP_COLOR;
+		}
 	} else {
 		currentSeqState = STOPPED;
 		seq->pause();
@@ -411,6 +437,9 @@ void buttonEventSave() {
 		seq->stop();
 		leds[PLAY_LED] = CRGB::White;
 		currentSeqState = STOPPED;
+		for (int i = 0; i < 16; i++) {
+			*stepLeds[i] = STEP_COLOR;
+		}
 		FastLED.show();
 	}
 }
@@ -521,8 +550,8 @@ void keyEvent(keypadEvent e) {
 						modeLeds[i]->fadeLightBy( 200 );
 				}
 				updateScaleLeds();
-				for (int i = 1; i < 9; i++) {
-					leds[2 * 9 + i] = leds[3 * 9 + i] = STEP_COLOR;
+				for (int i = 0; i < 16; i++) {
+					*stepLeds[i] = STEP_COLOR;
 				}
 
 				FastLED.show();
@@ -540,12 +569,15 @@ void keyEvent(keypadEvent e) {
 					case HARMONIC_MINOR:
 					case LYDIAN:
 					case BLUES:
+						keySet.print();
 						if (!keySet.existsOtherThan(e.bit.KEY)) {
 							if (e.bit.EVENT == KEY_JUST_PRESSED) {
 								sendNoteOn(scalesVector[currentScale][0] + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(scalesVector[currentScale][0] + (octaveModifier * semitonesPerOctave));
 							}
+
+							
 
 						}
 						break;
@@ -562,7 +594,20 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(37 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(37 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
+
+						/*if(selectedStep != -1) {
+							// set step pitch to this
+							int p = seq->getSequence()->getNote(lastSelectedStep)->getPitch() % 12;
+							leds[p + 1] = NOTE_COLOR;
+							p = seq->getSequence()->getNote(selectedStep)->getPitch() % 12;
+							leds[p + 1] = CRGB::Red;
+							seq->getSequence()->setStep(new Note(37 + (octaveModifier * semitonesPerOctave)), selectedStep);
+						}*/
 						break;
 					case NATURAL_MINOR:
 					case MAJOR:
@@ -594,6 +639,11 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(39 + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(39 + (octaveModifier * semitonesPerOctave));
+							}
+
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(39 + (octaveModifier * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -655,6 +705,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(42 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(42 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -688,6 +742,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(44 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(44 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -720,6 +778,10 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(46 + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(46 + (octaveModifier * semitonesPerOctave));
+							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(46 + (octaveModifier * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -795,6 +857,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(36 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(36 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -827,6 +893,10 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(38 + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(38 + (octaveModifier * semitonesPerOctave));
+							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(38 + (octaveModifier * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -861,6 +931,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(40 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(40 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -893,6 +967,10 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(41 + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(41 + (octaveModifier * semitonesPerOctave));
+							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(41 + (octaveModifier * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -927,6 +1005,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(43 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(43 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -959,6 +1041,10 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(45 + (octaveModifier * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(45 + (octaveModifier * semitonesPerOctave));
+							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(45 + (octaveModifier * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -993,6 +1079,10 @@ void keyEvent(keypadEvent e) {
 							} else {
 								sendNoteOff(47 + (octaveModifier * semitonesPerOctave));
 							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(47 + (octaveModifier * semitonesPerOctave), selectedStep);
+							}
 						}
 						break;
 					case NATURAL_MINOR:
@@ -1025,6 +1115,10 @@ void keyEvent(keypadEvent e) {
 								sendNoteOn(36 + ((octaveModifier + 1) * semitonesPerOctave), 80);
 							} else {
 								sendNoteOff(36 + ((octaveModifier + 1) * semitonesPerOctave));
+							}
+							if(selectedStep != -1) {
+								// set step pitch to this
+								seq->getSequence()->setStep(36 + ((octaveModifier + 1) * semitonesPerOctave), selectedStep);
 							}
 						}
 						break;
@@ -1066,29 +1160,70 @@ void keyEvent(keypadEvent e) {
 			}
 			break;
 		case 19:
-			
-			break;
 		case 20:
-
-			break;
 		case 21:
-
-			break;
 		case 22:
-
-			break;
 		case 23:
-
-			break;
 		case 24:
-
-			break;
 		case 25:
-
-			break;
 		case 26:
-
+			if (!keySet.existsOtherThan(e.bit.KEY)) {
+				if (e.bit.EVENT == KEY_JUST_PRESSED) {
+					if(selectedStep == e.bit.KEY - 19) { //if the selected step is the same that is pressed now deselect it
+						lastSelectedStep = selectedStep;
+						*stepLeds[selectedStep] = STEP_COLOR;
+						selectedStep = -1;
+					} else {	//if there is another step pressed or no step selected yet, select the pressed one
+						if(lastSelectedStep != -1) {
+							*stepLeds[lastSelectedStep] = STEP_COLOR;
+						}
+						selectedStep = e.bit.KEY - 19;
+						*stepLeds[selectedStep] = CRGB::White;
+						lastSelectedStep = selectedStep;
+						scaleError = false;
+						disp.fillRect(10, lineheight * 5, 100, lineheight, BLACK);
+						updateScaleLeds();
+					}
+					if(selectedStep != -1) {
+						int p = seq->getSequence()->getNote(selectedStep)->getPitch();
+						int note = p % 12 + 36;
+						int octave = note / 12 - 1;
+						switch(currentScale) {
+							case FULL:
+								leds[km[note - 36]] = CRGB::Red;
+								break;
+							case NATURAL_MINOR:
+							case MAJOR:
+							case DORIAN:
+							case PHRYGIAN:
+							case MIXOLYDIAN:
+							case MELODIC_MINOR:
+							case HARMONIC_MINOR:
+							case LYDIAN:
+							case BLUES:
+								
+								int i = 0;
+								
+								for(i = 0; i < 8; i++) {
+									if(scalesVector[currentScale][i] == note) {
+										leds[i + 1] = CRGB::Red;
+										break;		
+									}
+								}
+								Serial.println(i);
+								if(i == 8) {
+									scaleError = true;
+								}
+								
+						}
+					}
+					
+					FastLED.show();
+				}
+				
+			}
 			break;
+		
 		case 27: //Gate key =============================================================================
 			if (e.bit.EVENT == KEY_JUST_PRESSED) {
 				currentKeyboardMode = GATE;
@@ -1105,34 +1240,22 @@ void keyEvent(keypadEvent e) {
 				FastLED.show();
 			}
 			break;
+			
 		case 28:
-
-			break;
 		case 29:
-
-			break;
 		case 30:
-
-			break;
 		case 31:
-
-			break;
 		case 32:
-
-			break;
 		case 33:
-
-			break;
 		case 34:
-
-			break;
 		case 35:
-
-			break;
 		case 36:
 
+			
+			
 			break;
 	}
+	FastLED.show();
 }
 
 void encoderDisplay(bool dir) {
@@ -1181,7 +1304,45 @@ void encoderBpm(bool dir) {
 
 // called when the step position changes.
 void seqStep(int current, int last) {
+	*stepLeds[last] = STEP_COLOR;
+	*stepLeds[current] = CRGB(255, 255, 204);
+	
+	if(selectedStep != -1) {
+		int p = seq->getSequence()->getNote(current)->getPitch();
+		int note = p % 12 + 36;
+		int octave = note / 12 - 1;
+		switch(currentScale) {
+			case FULL:
+				int km[12] = {10, 2, 11, 3, 12, 13, 5, 14, 6, 15, 7, 16};	
+				leds[km[seq->getSequence()->getNote(last)->getPitch() % 12]] = NOTE_COLOR;
+				leds[km[note - 36]] = CRGB::Red;
+				break;
+			case NATURAL_MINOR:
+			case MAJOR:
+			case DORIAN:
+			case PHRYGIAN:
+			case MIXOLYDIAN:
+			case MELODIC_MINOR:
+			case HARMONIC_MINOR:
+			case LYDIAN:
+			case BLUES:
+				
+				int i = 0;
+				Serial.println(note);
+				for(i = 0; i < 8; i++) {
+					if(scalesVector[currentScale][i] == note) {
+						leds[i + 1] = CRGB::Red;
+						break;		
+					}
+				}
 
+				if(i == 8) {
+					scaleError = true;
+				}
+				
+		}
+	}
+	FastLED.show();
 }
 
 // the callback that will be called by the sequencer when it needs to send midi commands.
@@ -1286,6 +1447,12 @@ void showSplashScreen() {
 	disp.print(F("@UnibucRobotics"));
 	disp.setCursor(10, 95);
 	disp.print(F("by Alexandru Surdu Bob"));
+}
+
+void showScaleError() {
+	disp.setTextSize(1);
+	disp.setCursor(10, lineheight * 5);
+	disp.print("Note not in this scale");
 }
 
 void clearScreen() {

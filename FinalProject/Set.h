@@ -54,6 +54,18 @@ class Set {
 			}
 			return nr != 0;
 		}
+
+		int* getValues() {
+			return values;
+		}
+
+		void print() {
+			for (int i = 0; i < 4; i++) {
+				Serial.print(values[i]);
+				Serial.print(" ");
+			}
+			Serial.println();
+		}
 	private:
 		int values[4];
 };
