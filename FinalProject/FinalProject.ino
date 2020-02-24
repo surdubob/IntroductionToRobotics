@@ -1409,8 +1409,8 @@ uint16_t color(uint16_t R, uint16_t G, uint16_t B) {
 
 void displayBpm() {
 	disp.setTextColor(WHITE, BLACK);
-	disp.setTextSize(1);
-	disp.setCursor(10, lineheight * 1);
+	disp.setTextSize(2);
+	disp.setCursor(10, lineheight * 2);
 	disp.print(F("BPM:"));
 	disp.print(BPM);
 	disp.print("  ");
@@ -1418,8 +1418,8 @@ void displayBpm() {
 
 void displayMode() {
 	disp.setTextColor(WHITE, BLACK);
-	disp.setTextSize(1);
-	disp.setCursor(10, lineheight * 2);
+	disp.setTextSize(2);
+	disp.setCursor(10, lineheight * 4 + 5);
 	disp.print(F("MODE:"));
 	disp.print(modeStrings[currentKeyboardMode]);
 	disp.print(F("      "));
@@ -1427,8 +1427,8 @@ void displayMode() {
 
 void displayScale() {
 	disp.setTextColor(WHITE, BLACK);
-	disp.setTextSize(1);
-	disp.setCursor(10, lineheight * 3);
+	disp.setTextSize(2);
+	disp.setCursor(10, lineheight * 6 + 10);
 	disp.print("Scale:");
 	disp.print(scaleStrings[currentScale]);
 	disp.print("           ");
